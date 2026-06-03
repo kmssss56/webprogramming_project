@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"git -C /Users/gangminseo/Desktop/웹프로그래밍프로젝트 status 2>&1; git -C /Users/gangminseo/Desktop/웹프로그래밍프로젝트 remote -v 2>&1; git -C /Users/gangminseo/Desktop/웹프로그래밍프로젝트 log --oneline -5 2>&1\",\"des...",
-  "error": "Exit code 128\nfatal: not a git repository (or any of the parent directories): .git\nfatal: not a git repository (or any of the parent directories): .git\nfatal: not a git repository (or any of the parent directories): .git",
-  "timestamp": "2026-06-03T07:02:58.113Z",
-  "retry_count": 1
-}

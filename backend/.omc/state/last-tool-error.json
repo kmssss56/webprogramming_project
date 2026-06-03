@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd /Users/gangminseo/Desktop/웹프로그래밍프로젝트/frontend && npm run build 2>&1\",\"timeout\":60000,\"description\":\"Build frontend to check for errors\"}",
-  "error": "Exit code 1\n\n> cinelist-frontend@0.1.0 build\n> vite build\n\nvite v5.4.21 building for production...\ntransforming...\n✓ 3 modules transformed.\nx Build failed in 254ms\nerror during build:\n[vite:build-import-analysis] [plugin vite:build-import-analysis] src/hooks/useAuth.js (26:27): Failed to parse source for import analysis because the content contains invalid JS syntax. If you are using JSX, make sure to name the file with the .jsx or .tsx extension.\nfile: /Users/gangminseo/Desktop/웹프로그래밍프...",
-  "timestamp": "2026-06-03T07:23:13.348Z",
-  "retry_count": 2
-}
