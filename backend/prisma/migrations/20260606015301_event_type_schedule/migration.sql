@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "EventType" ADD COLUMN     "dateMode" TEXT NOT NULL DEFAULT 'days',
+ADD COLUMN     "dates" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN     "daysOfWeek" INTEGER[] DEFAULT ARRAY[1, 2, 3, 4, 5]::INTEGER[],
+ADD COLUMN     "timeEnd" TEXT NOT NULL DEFAULT '17:00',
+ADD COLUMN     "timeStart" TEXT NOT NULL DEFAULT '09:00';
