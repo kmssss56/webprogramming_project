@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { encryptToken } from '../common/token-crypto';
 import { JwtService } from '@nestjs/jwt';
 import axios from 'axios';
 import { PrismaService } from '../prisma.service';
@@ -15,7 +16,7 @@ export class AuthService {
       client_id: process.env.KAKAO_CLIENT_ID,
       redirect_uri: process.env.KAKAO_REDIRECT_URI,
       response_type: 'code',
-      scope: 'profile_nickname profile_image account_email talk_message',
+      scope: 'profile_nickname talk_message',
     });
     return `https://kauth.kakao.com/oauth/authorize?${params}`;
   }
@@ -63,8 +64,8 @@ export class AuthService {
           name,
           email,
           username,
-          kakaoAccessToken: access_token,
-          kakaoRefreshToken: refresh_token,
+          kakaoAccessToken: encryptToken(access_token),
+          kakaoRefreshToken: encryptToken(refresh_token),
         },
       });
 
@@ -72,7 +73,7 @@ export class AuthService {
     } else {
       user = await this.prisma.user.update({
         where: { kakaoId },
-        data: { kakaoAccessToken: access_token, kakaoRefreshToken: refresh_token },
+        data: { kakaoAccessToken: encryptToken(access_token), kakaoRefreshToken: encryptToken(refresh_token) },
       });
     }
 
@@ -109,7 +110,7 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { googleRefreshToken: refresh_token },
+      data: { googleRefreshToken: encryptToken(refresh_token) },
     });
 
     return { success: true };
