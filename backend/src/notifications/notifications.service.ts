@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ko';
+import { decryptToken } from '../common/token-crypto';
 
 dayjs.locale('ko');
 
@@ -22,13 +23,40 @@ export class NotificationsService {
         }),
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${decryptToken(accessToken)}`,
             'Content-Type': 'application/x-www-form-urlencoded',
           },
         },
       );
     } catch (e) {
       this.logger.warn('카카오톡 알림 전송 실패:', e.message);
+    }
+  }
+
+  // 예약 링크를 내 카카오톡(나에게 보내기)으로 전송. 공유 버튼용이라 실패를 호출자에 알린다.
+  async sendKakaoLink(accessToken: string, text: string, url: string): Promise<boolean> {
+    try {
+      await axios.post(
+        'https://kapi.kakao.com/v2/api/talk/memo/default/send',
+        new URLSearchParams({
+          template_object: JSON.stringify({
+            object_type: 'text',
+            text: `${text}\n${url}`,
+            link: { web_url: url, mobile_web_url: url },
+            button_title: '예약 페이지 열기',
+          }),
+        }),
+        {
+          headers: {
+            Authorization: `Bearer ${decryptToken(accessToken)}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        },
+      );
+      return true;
+    } catch (e) {
+      this.logger.warn('카카오톡 링크 전송 실패:', e.response?.data || e.message);
+      return false;
     }
   }
 
@@ -56,6 +84,15 @@ export class NotificationsService {
       this.sendKakaoMessage(hostToken, hostMsg),
       this.sendKakaoMessage(guestToken, guestMsg),
     ]);
+  }
+
+  // 시간 조율 요청 도착 알림 (호스트에게)
+  async notifyBookingRequested(
+    hostToken: string,
+    params: { guestName: string; title: string; count: number },
+  ) {
+    const msg = `[MeetLink] 시간 조율 요청이 도착했어요!\n\n미팅: ${params.title}\n게스트: ${params.guestName}\n제안한 시간: ${params.count}개\n\n미팅 목록에서 시간을 골라 확정해주세요.`;
+    await this.sendKakaoMessage(hostToken, msg);
   }
 
   async notifyBookingCancelled(
