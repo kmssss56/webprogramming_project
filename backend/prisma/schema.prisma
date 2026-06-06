@@ -37,6 +37,17 @@ model EventType {
   slug         String
   locationType String   @default("online")
   isActive     Boolean  @default(true)
+  // 일정 형식: 미팅 타입별 예약 가능 시간 (OneTime 스타일)
+  timeStart    String   @default("09:00")
+  timeEnd      String   @default("17:00")
+  dateMode     String   @default("days") // "days"(요일 반복) | "dates"(특정 날짜들)
+  dates        String[] @default([]) // dateMode=dates일 때 YYYY-MM-DD 목록
+  daysOfWeek   Int[]    @default([1, 2, 3, 4, 5]) // dateMode=days일 때 요일(0=일)
+  endDate      String?  // dateMode=days일 때 반복 종료일 (YYYY-MM-DD)
+  confirmMode  String   @default("instant") // "instant"(바로 확정) | "poll"(시간 조율 후 호스트 확정)
+  blockedTimes String[] @default([]) // 호스트가 직접 막은 슬롯 시작시각(ISO) — 게스트에게 불가
+  openedTimes  String[] @default([]) // 구글 일정이 있어도 호스트가 연 슬롯 시작시각(ISO) — 빗금 해제
+  sharedAt     DateTime? // 링크 복사/카톡 공유 시각 — 공유 후에는 시간 편집 잠금
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -63,7 +74,8 @@ model Booking {
   guestId     String
   startTime   DateTime
   endTime     DateTime
-  status      String   @default("confirmed")
+  status        String  @default("confirmed") // confirmed | pending(조율 대기) | cancelled
+  proposedTimes Json?   // poll 모드: 게스트가 제안한 후보 시간들 [{start,end}]
   meetLink    String?
   location    String?
   notes       String?

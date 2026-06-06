@@ -25,4 +25,15 @@ export class BookingsController {
   cancel(@CurrentUser() user: any, @Param('id') id: string) {
     return this.bookingsService.cancel(user.id, id);
   }
+
+  // 시간 조율 요청에서 호스트가 시간 하나를 골라 확정
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/confirm')
+  confirm(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() body: { startTime: string; endTime: string },
+  ) {
+    return this.bookingsService.confirm(user.id, id, body.startTime, body.endTime);
+  }
 }

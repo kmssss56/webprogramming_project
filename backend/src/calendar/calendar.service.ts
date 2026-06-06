@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { google } from 'googleapis';
 import dayjs from 'dayjs';
+import { decryptToken } from '../common/token-crypto';
 
 @Injectable()
 export class CalendarService {
@@ -14,7 +15,8 @@ export class CalendarService {
 
   private getCalendarClient(refreshToken: string) {
     const auth = this.getOAuthClient();
-    auth.setCredentials({ refresh_token: refreshToken });
+    // DB에 암호화 저장된 토큰을 사용 시점에 복호화 (평문 레거시도 호환)
+    auth.setCredentials({ refresh_token: decryptToken(refreshToken) });
     return google.calendar({ version: 'v3', auth });
   }
 
@@ -81,6 +83,8 @@ export class CalendarService {
     await calendar.events.delete({ calendarId: 'primary', eventId });
   }
 
+  // 소프트 블락: 캘린더 일정과 겹치는 슬롯도 제외하지 않고 busy 플래그로 표시만 한다.
+  // 게스트는 겹치는 시간임을 보면서도 예약할 수 있다 (기존 일정을 옮기고 잡는 경우).
   computeAvailableSlots(
     date: string,
     availability: { startTime: string; endTime: string } | null,
@@ -88,10 +92,10 @@ export class CalendarService {
     bufferTime: number,
     hostBusy: { start: string; end: string }[],
     guestBusy: { start: string; end: string }[],
-  ): { start: string; end: string }[] {
+  ): { start: string; end: string; busy: boolean }[] {
     if (!availability) return [];
 
-    const slots: { start: string; end: string }[] = [];
+    const slots: { start: string; end: string; busy: boolean }[] = [];
     const [startH, startM] = availability.startTime.split(':').map(Number);
     const [endH, endM] = availability.endTime.split(':').map(Number);
 
@@ -111,9 +115,7 @@ export class CalendarService {
         return slotStart.isBefore(busyEnd) && slotEnd.isAfter(busyStart);
       });
 
-      if (!overlaps) {
-        slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString() });
-      }
+      slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString(), busy: overlaps });
 
       cursor = cursor.add(step, 'minute');
     }
