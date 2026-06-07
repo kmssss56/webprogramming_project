@@ -22,9 +22,8 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('google/calendar')
-  googleCalendarAuth(@CurrentUser() user: any, @Res() res: Response) {
-    const url = this.authService.getGoogleCalendarAuthUrl(user.id);
-    return res.redirect(url);
+  googleCalendarAuth(@CurrentUser() user: any) {
+    return { url: this.authService.getGoogleCalendarAuthUrl(user.id) };
   }
 
   @Get('google/callback')
