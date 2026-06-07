@@ -22,19 +22,22 @@ export default function BookingConfirm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(null)
-
   const [eventType, setEventType] = useState(null)
   const [host, setHost] = useState(null)
 
+  const isPoll = Boolean(draft?.poll)
+  const firstStart = isPoll ? draft?.slots?.[0]?.start : draft?.slot?.start
+
   useEffect(() => {
     if (!draft) { navigate(`/${username}/${slug}`); return }
-    api.get(`/calendar/slots/${username}/${slug}?date=${draft.slot.start.split('T')[0]}`)
+    api.get(`/calendar/slots/${username}/${slug}?date=${firstStart.split('T')[0]}`)
       .then((data) => { setEventType(data.eventType); setHost(data.host) })
   }, [])
 
   if (!draft) return null
 
   const requireLogin = !user
+  const isSelf = Boolean(user && host && user.username === host.username)
 
   const handleConfirm = async () => {
     if (!user) {
@@ -42,14 +45,14 @@ export default function BookingConfirm() {
       window.location.href = `${api.getBackendUrl()}/auth/kakao`
       return
     }
-
     setError('')
     setLoading(true)
     try {
       const booking = await api.post('/bookings', {
         eventTypeId: draft.eventTypeId,
-        startTime: draft.slot.start,
-        endTime: draft.slot.end,
+        ...(isPoll
+          ? { proposedTimes: draft.slots.map((s) => ({ start: s.start, end: s.end })) }
+          : { startTime: draft.slot.start, endTime: draft.slot.end }),
         notes,
         location: location || undefined,
       })
@@ -64,35 +67,41 @@ export default function BookingConfirm() {
 
   if (done) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-5">
+      <div className="min-h-screen flex items-center justify-center px-4 py-10">
         <div className="max-w-md w-full text-center anim-fade-up">
           <div
-            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl"
-            style={{ background: 'var(--green-dim)', border: '2px solid rgba(62,207,142,0.3)' }}
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-6"
+            style={{ background: 'var(--green-dim)', border: '2px solid rgba(16,185,129,0.3)' }}
           >
-            ✓
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+              <path d="M5 12l5 5L19 7" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
-          <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--green)' }}>예약 확정!</h1>
-          <p className="mb-6" style={{ color: 'var(--subtext-mid)' }}>
-            {formatDateTime(done.startTime)}에 예약이 확정되었습니다.<br />
-            카카오톡으로 알림을 전송했습니다.
+          <h1 className="text-xl sm:text-2xl font-bold mb-2" style={{ color: 'var(--green)' }}>
+            {done.status === 'pending' ? '조율 요청 전송!' : '예약 확정!'}
+          </h1>
+          <p className="mb-6 text-sm sm:text-base" style={{ color: 'var(--subtext-mid)' }}>
+            {done.status === 'pending' ? (
+              <>호스트에게 가능한 시간을 보냈어요.<br />호스트가 시간을 확정하면 카카오톡으로 알려드려요.</>
+            ) : (
+              <>{formatDateTime(done.startTime)}에 예약이 확정되었습니다.<br />카카오톡으로 알림을 전송했습니다.</>
+            )}
           </p>
-
           {done.meetLink && (
             <a
               href={done.meetLink}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-primary mb-4 w-full"
-              style={{ display: 'flex', justifyContent: 'center' }}
+              style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}
             >
-              🎥 Google Meet 참여 링크
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="15" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" fill="none"/><path d="M17 9.5l5-2v9l-5-2" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>
+              Google Meet 참여 링크
             </a>
           )}
-
           <div className="flex gap-3">
-            <button className="btn-ghost flex-1" onClick={() => navigate('/bookings')}>예약 목록 보기</button>
-            <button className="btn-ghost flex-1" onClick={() => navigate('/')}>홈으로</button>
+            <button className="btn-ghost flex-1 text-sm" onClick={() => navigate('/bookings')}>미팅 목록</button>
+            <button className="btn-ghost flex-1 text-sm" onClick={() => navigate('/')}>홈으로</button>
           </div>
         </div>
       </div>
@@ -100,7 +109,7 @@ export default function BookingConfirm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-5 py-10">
+    <div className="min-h-screen flex items-center justify-center px-4 py-10">
       <div className="max-w-md w-full anim-fade-up">
         <button
           className="btn-ghost mb-6" style={{ fontSize: '0.8rem' }}
@@ -109,15 +118,40 @@ export default function BookingConfirm() {
           ← 시간 다시 선택
         </button>
 
-        <div className="p-6 rounded-2xl mb-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <h2 className="font-bold text-lg mb-4" style={{ letterSpacing: '-0.02em' }}>예약 확인</h2>
-
+        <div className="cal-card mb-5">
+          <div className="cal-card-header">
+            <h2 className="font-bold text-lg" style={{ letterSpacing: '-0.02em' }}>{isPoll ? '시간 조율 요청' : '예약 확인'}</h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--subtext-mid)' }}>
+              {isPoll ? '선택한 시간들을 호스트에게 보내요. 호스트가 하나를 골라 확정합니다.' : '아래 내용을 확인하고 예약을 확정하세요.'}
+            </p>
+          </div>
+          <div className="p-5 sm:p-6">
           <div className="space-y-3 mb-5">
-            <InfoRow icon="📋" label="미팅" value={eventType?.title || slug} />
-            <InfoRow icon="👤" label="호스트" value={host?.name || username} />
-            <InfoRow icon="🕐" label="일시" value={formatDateTime(draft.slot.start)} />
-            <InfoRow icon="⏱" label="소요시간" value={`${eventType?.duration || '?'}분`} />
-            <InfoRow icon={eventType?.locationType === 'online' ? '💻' : '📍'} label="방식" value={eventType?.locationType === 'online' ? '온라인 (Google Meet 자동 생성)' : '오프라인'} />
+            <InfoRow label="미팅" value={eventType?.title || slug} icon={<IconMeeting />} />
+            <InfoRow label="호스트" value={host?.name || username} icon={<IconUser />} />
+            {isPoll ? (
+              <div className="flex items-start gap-3">
+                <div style={{ marginTop: '2px', color: 'var(--subtext-mid)', flexShrink: 0 }}><IconClock /></div>
+                <div className="min-w-0">
+                  <span className="text-xs font-medium" style={{ color: 'var(--subtext)' }}>제안할 시간 ({draft.slots.length}개)</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {draft.slots.map((s) => (
+                      <span key={s.start} className="tag tag-gold" style={{ textTransform: 'none', letterSpacing: 0 }}>
+                        {formatDateTime(s.start)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <InfoRow label="일시" value={formatDateTime(draft.slot.start)} icon={<IconClock />} />
+            )}
+            <InfoRow label="소요시간" value={`${eventType?.duration || '?'}분`} icon={<IconTimer />} />
+            <InfoRow
+              label="방식"
+              value={eventType?.locationType === 'online' ? '온라인 (Google Meet 자동 생성)' : '오프라인'}
+              icon={eventType?.locationType === 'online' ? <IconVideo /> : <IconPin />}
+            />
           </div>
 
           <div className="space-y-3 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
@@ -140,22 +174,36 @@ export default function BookingConfirm() {
                 style={{ resize: 'none' }}
               />
             </div>
+            </div>
           </div>
         </div>
 
         {requireLogin && (
           <div
             className="p-4 rounded-xl mb-4 text-sm"
-            style={{ background: 'rgba(245,166,35,0.07)', border: '1px solid rgba(245,166,35,0.2)', color: 'var(--subtext-mid)' }}
+            style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.2)', color: 'var(--subtext-mid)' }}
           >
             예약하려면 카카오 로그인이 필요합니다.
           </div>
         )}
 
-        {error && <p className="text-sm text-center mb-4" style={{ color: '#f87171' }}>{error}</p>}
+        {isSelf && (
+          <div
+            className="p-4 rounded-xl mb-4 text-sm"
+            style={{ background: 'var(--red-dim)', border: '1px solid rgba(239,68,68,0.25)', color: '#b91c1c' }}
+          >
+            내 미팅은 직접 예약할 수 없어요. 링크를 게스트에게 공유해주세요.
+          </div>
+        )}
 
-        <button className="btn-primary w-full" onClick={handleConfirm} disabled={loading}>
-          {loading ? '예약 처리 중...' : requireLogin ? '카카오 로그인 후 예약' : '예약 확정하기'}
+        {error && <p className="text-sm text-center mb-4" style={{ color: '#ef4444' }}>{error}</p>}
+
+        <button className="btn-primary w-full" onClick={handleConfirm} disabled={loading || isSelf}>
+          {loading
+            ? '처리 중...'
+            : requireLogin
+              ? `카카오 로그인 후 ${isPoll ? '보내기' : '예약'}`
+              : isPoll ? '조율 요청 보내기' : '예약 확정하기'}
         </button>
       </div>
     </div>
@@ -165,11 +213,18 @@ export default function BookingConfirm() {
 function InfoRow({ icon, label, value }) {
   return (
     <div className="flex items-start gap-3">
-      <span style={{ fontSize: '1rem', marginTop: '0.1rem' }}>{icon}</span>
-      <div>
+      <div style={{ marginTop: '2px', color: 'var(--subtext-mid)', flexShrink: 0 }}>{icon}</div>
+      <div className="min-w-0">
         <span className="text-xs font-medium" style={{ color: 'var(--subtext)' }}>{label}</span>
         <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{value}</p>
       </div>
     </div>
   )
 }
+
+const IconMeeting = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M3 9h18M8 2v3M16 2v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+const IconUser = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/></svg>
+const IconClock = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+const IconTimer = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="13" r="8" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M12 9v4l2 2M9 2h6M12 2v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+const IconVideo = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="15" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/><path d="M17 9.5l5-2v9l-5-2" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+const IconPin = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.5" fill="none"/><circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/></svg>
