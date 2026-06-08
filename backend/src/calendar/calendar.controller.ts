@@ -5,6 +5,14 @@ import { PrismaService } from '../prisma.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// 날짜 경계는 한국 기준 — 서버 타임존(UTC)으로 하루가 밀리지 않게 한다
+const KST = 'Asia/Seoul';
 
 @Controller('calendar')
 export class CalendarController {
@@ -59,7 +67,7 @@ export class CalendarController {
     const schedule = this.getScheduleForDate(eventType, date);
     if (!schedule) return { slots: [], ...base };
 
-    const targetDate = dayjs(date);
+    const targetDate = dayjs.tz(date, KST);
     const timeMin = targetDate.startOf('day').toISOString();
     const timeMax = targetDate.endOf('day').toISOString();
 
@@ -109,7 +117,7 @@ export class CalendarController {
       // 요일 반복: 종료일이 지나면 예약 불가
       if (eventType.endDate && date > eventType.endDate) return null;
       const days = eventType.daysOfWeek?.length ? eventType.daysOfWeek : [1, 2, 3, 4, 5];
-      if (!days.includes(dayjs(date).day())) return null;
+      if (!days.includes(dayjs.tz(date, KST).day())) return null;
     }
     return {
       startTime: eventType.timeStart || '09:00',
