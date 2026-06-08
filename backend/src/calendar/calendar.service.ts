@@ -1,7 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { google } from 'googleapis';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { decryptToken } from '../common/token-crypto';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// 슬롯 시간은 항상 한국 기준 — 서버 타임존(Render=UTC)에 휘둘리지 않게 한다
+const KST = 'Asia/Seoul';
 
 @Injectable()
 export class CalendarService {
@@ -99,8 +107,8 @@ export class CalendarService {
     const [startH, startM] = availability.startTime.split(':').map(Number);
     const [endH, endM] = availability.endTime.split(':').map(Number);
 
-    let cursor = dayjs(date).hour(startH).minute(startM).second(0);
-    const dayEnd = dayjs(date).hour(endH).minute(endM).second(0);
+    let cursor = dayjs.tz(date, KST).hour(startH).minute(startM).second(0).millisecond(0);
+    const dayEnd = dayjs.tz(date, KST).hour(endH).minute(endM).second(0).millisecond(0);
     const step = duration + bufferTime;
 
     const allBusy = [...hostBusy, ...guestBusy];
